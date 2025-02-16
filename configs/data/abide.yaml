@@ -1,0 +1,20 @@
+_target_: src.data.abide_datamodule.AbideDataModule
+
+dataset_cls:
+  _target_: src.data.components.abide.AbideDataset
+  _partial_: True
+  id_col: SUB_ID
+  use_cols:
+  - edge
+  - label
+  - id
+data_dir: ./data/split/default
+fold: 0
+train_file: train.csv
+valid_file: valid.csv
+test_file: test.csv
+roi_dir: null
+store_path: ./feature/rois_cc200/raw
+batch_size: 32
+num_workers: 0
+pin_memory: False

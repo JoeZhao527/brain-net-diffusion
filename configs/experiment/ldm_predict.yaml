@@ -1,0 +1,116 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /data: abide
+  - override /model: ldm_classification
+  - override /callbacks: default
+  - override /logger: tensorboard
+  - override /trainer: gpu
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["abide", "dae_1"]
+
+seed: 19
+
+trainer:
+  min_epochs: 1
+  max_epochs: 1
+
+data:
+  dataset_cls:
+    _target_: src.data.components.abide.AbideDataset
+    _partial_: True
+    id_col: SUB_ID
+    use_cols:
+    - edge_mtx
+    - label
+    - condition
+    - id
+    - split
+    - condition_key
+    conditions:
+    - DX_GROUP
+  batch_size: 64
+  store_path: ./feature/rois_cc200/raw
+  
+model:
+  net:
+    _target_: src.models.components.readout.InferencePredictor
+    label_key: DX_GROUP
+    sample_num: 4
+    condition_mode: ${condition_mode}
+    guidance_level:
+    - 0.2
+    - 0.4
+    diffusion_ckpt: ./logs/ldm_train/data.fold=${data.fold},experiment=vqgae_diffusion/checkpoints
+    diffusion_model:
+      _target_: src.models.components.diffusion.VQGAELatentDiffusion
+      pretrain_ckpt: ./logs/gae_train/data.fold=${data.fold},experiment=vqgae/checkpoints
+      pretrain_model:
+        _target_: src.models.components.vqgae.VQ_GAE
+        in_dim: 200
+        hidden_dim: 64
+        cluster_number: 200
+        num_embeddings: 768
+        embedding_dim: 16
+        commitment_cost: 1
+        decay: 0
+      distribution_match: ${distribution_match}
+      diffusion_model:
+        _target_: src.models.components.diffusion.GaussianDiffusion
+        diff_steps: 100
+        guidance_level: 0.0
+        contrastive_emb: ${contrastive_emb}
+        denoise_fn:
+          _target_: src.models.components.diffusion.DiT
+          input_size: ${model.net.diffusion_model.pretrain_model.cluster_number}
+          patch_size: 1
+          in_channels: ${model.net.diffusion_model.pretrain_model.hidden_dim}
+          hidden_size: 128
+          depth: 14
+          num_heads: 8
+          mlp_ratio: 4.0
+          class_dropout_prob: 0.0
+          num_classes: 2
+          learn_sigma: False
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 0.0001
+    weight_decay: 0.0
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: min
+    factor: 0.1
+    patience: 70
+
+callbacks:
+  model_checkpoint:
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: "epoch_{epoch:03d}"
+    monitor: "val/loss"
+    mode: "min"
+    save_last: True
+    auto_insert_metric_name: False
+
+  early_stopping:
+    monitor: "val/loss"
+    patience: 150
+    mode: "min"
+
+pred_path: ${paths.output_dir}/predicts
+prev_stage: null
+use_original_data: True
+
+train: false
+test: false
+predict: true
+
+distribution_match: True
+contrastive_emb: True
+condition_mode: union

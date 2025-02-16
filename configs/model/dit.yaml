@@ -1,0 +1,40 @@
+_target_: src.models.abide_ldm_module.AbideLDMModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.1
+  patience: 10
+
+net:
+  _target_: src.models.components.diffusion.VQGAELatentDiffusion
+  distribution_match: True
+  diffusion_model:
+    _target_: src.models.components.diffusion.GaussianDiffusion
+    beta_end: 0.1
+    diff_steps: 100
+    loss_type: l1
+    beta_schedule: linear
+    denoise_fn:
+      _target_: src.models.components.diffusion.DiT
+      input_size: 600
+      patch_size: 1
+      in_channels: 1
+      hidden_size: 256
+      depth: 28
+      num_heads: 8
+      mlp_ratio: 4.0
+      class_dropout_prob: 0.1
+      num_classes: 3
+      learn_sigma: False
+
+
+# compile model for faster training with pytorch 2.0
+compile: false

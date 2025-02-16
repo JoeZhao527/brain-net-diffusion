@@ -1,0 +1,27 @@
+_target_: src.models.abide_vqvae_module.AbideVQVaeModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: true
+  mode: min
+  factor: 0.1
+  patience: 50
+
+net:
+  _target_: src.models.components.vqgae.VQ_GAE
+  in_dim: 200
+  hidden_dim: 64
+  cluster_number: 120
+  num_embeddings: 1024
+  embedding_dim: 32
+  commitment_cost: 0.25
+  decay: 0
+
+# compile model for faster training with pytorch 2.0
+compile: false

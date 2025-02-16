@@ -1,0 +1,75 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /data: abide
+  - override /model: vqgae
+  - override /callbacks: dae
+  - override /logger: tensorboard
+  - override /trainer: gpu
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["abide", "dae_1"]
+
+seed: 19
+
+trainer:
+  min_epochs: 50
+  max_epochs: 800
+
+data:
+  batch_size: 64
+  dataset_cls:
+    _target_: src.data.components.abide.AbideDataset
+    _partial_: True
+    id_col: SUB_ID
+    use_cols:
+    - edge_mtx
+    - label
+    - id
+  store_path: ./feature/rois_cc200/raw
+
+model:
+  pred_save_raw: True
+  net:
+    _target_: src.models.components.vqgae.VQ_GAE
+    in_dim: 200
+    hidden_dim: 64
+    cluster_number: 200
+    num_embeddings: 768
+    embedding_dim: 16
+    commitment_cost: 1
+    decay: 0
+
+  optimizer:
+    _target_: torch.optim.Adam
+    _partial_: true
+    lr: 3.e-4
+    weight_decay: 0.0
+
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    _partial_: true
+    mode: min
+    factor: 0.1
+    patience: 150
+
+callbacks:
+  model_checkpoint:
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: "epoch_{epoch:03d}"
+    monitor: "val/rec_loss"
+    mode: "min"
+    save_last: True
+    auto_insert_metric_name: False
+
+  early_stopping:
+    monitor: "val/rec_loss"
+    patience: 400
+    mode: "min"
+
+pred_path: ${paths.output_dir}/predicts
+prev_stage: null
